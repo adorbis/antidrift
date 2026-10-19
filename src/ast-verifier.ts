@@ -1,12 +1,12 @@
 import { Project } from 'ts-morph';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ShieldConfig, AuditResult } from './types';
+import { ShieldConfig, AuditResult, Objective } from './types';
 import { getChangedFiles } from './git-audit';
 import { runTypeCheck } from './type-checker';
 import { auditWorktrees } from './worktree-audit';
 import { auditPackages } from './package-audit';
-import { Objective } from './types';
+import { verifyAllClaims } from './claim-verifier';
 
 function matchesIgnore(filePath: string, patterns: string[]): boolean {
   return patterns.some((p) => {
@@ -33,6 +33,7 @@ function emptyResult(reason: string): AuditResult {
     typeCheck: { passed: true, skipped: true, reason },
     worktreeIssues: [],
     packageIssues: [],
+    claimResults: [],
   };
 }
 
@@ -62,9 +63,7 @@ export function runASTAudit(
       if (!project.getSourceFile(abs)) {
         try {
           project.addSourceFileAtPath(abs);
-        } catch {
-          // Unparseable — skip
-        }
+        } catch {}
       }
     }
 
@@ -85,13 +84,17 @@ export function runASTAudit(
   const typeCheck = runTypeCheck(cwd, config);
   const worktreeIssues = auditWorktrees(cwd);
   const packageIssues = auditPackages(cwd, objective);
+  const claimResults = verifyAllClaims(cwd, config, objective);
+
+  const claimsFailed = claimResults.some((r) => r.status === 'FALSE' || r.duplicate);
 
   const passed =
     orphans.length === 0 &&
     stubs.length === 0 &&
     typeCheck.passed &&
     worktreeIssues.length === 0 &&
-    packageIssues.length === 0;
+    packageIssues.length === 0 &&
+    !claimsFailed;
 
   return {
     passed,
@@ -102,5 +105,6 @@ export function runASTAudit(
     typeCheck,
     worktreeIssues,
     packageIssues,
+    claimResults,
   };
 }

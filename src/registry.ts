@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Registry, Objective } from './types';
+import { Registry, Objective, Claim } from './types';
 
 export class RegistryManager {
   private registryDir: string;
@@ -24,7 +24,12 @@ export class RegistryManager {
   load(): Registry {
     if (!fs.existsSync(this.registryFile)) return this.emptyRegistry();
     try {
-      return JSON.parse(fs.readFileSync(this.registryFile, 'utf-8'));
+      const reg = JSON.parse(fs.readFileSync(this.registryFile, 'utf-8')) as Registry;
+      // Migrate: ensure every objective has a claims array
+      for (const obj of Object.values(reg.objectives)) {
+        if (!obj.claims) obj.claims = [];
+      }
+      return reg;
     } catch {
       return this.emptyRegistry();
     }
@@ -51,6 +56,22 @@ export class RegistryManager {
   list(): Objective[] {
     const reg = this.load();
     return Object.values(reg.objectives);
+  }
+
+  addClaim(objectiveId: string, claim: Claim): void {
+    const reg = this.load();
+    const obj = reg.objectives[objectiveId];
+    if (!obj) throw new Error(`Objective ${objectiveId} not found`);
+    obj.claims.push(claim);
+    this.save(reg);
+  }
+
+  updateClaims(objectiveId: string, claims: Claim[]): void {
+    const reg = this.load();
+    const obj = reg.objectives[objectiveId];
+    if (!obj) throw new Error(`Objective ${objectiveId} not found`);
+    obj.claims = claims;
+    this.save(reg);
   }
 }
 

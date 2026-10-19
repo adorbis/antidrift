@@ -6,6 +6,15 @@ export interface ShieldConfig {
   tsconfigPath: string;
 }
 
+export interface Claim {
+  id: string;
+  text: string;
+  registeredAt: string;
+  verified: boolean | null;
+  lastVerifiedAt: string | null;
+  details: string;
+}
+
 export interface Objective {
   id: string;
   goal: string;
@@ -14,6 +23,7 @@ export interface Objective {
   startCommit: string;
   scope: string[];
   status: 'active' | 'completed';
+  claims: Claim[];
 }
 
 export interface Registry {
@@ -38,6 +48,15 @@ export interface PackageIssue {
   message: string;
 }
 
+export type ClaimStatus = 'VERIFIED' | 'FALSE' | 'UNSUBSTANTIATED';
+
+export interface ClaimResult {
+  claim: Claim;
+  status: ClaimStatus;
+  details: string;
+  duplicate: boolean;
+}
+
 export interface AuditResult {
   passed: boolean;
   skipped: boolean;
@@ -48,4 +67,5 @@ export interface AuditResult {
   typeCheck: TypeCheckResult;
   worktreeIssues: WorktreeIssue[];
   packageIssues: PackageIssue[];
+  claimResults: ClaimResult[];
 }

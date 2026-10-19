@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import simpleGit from 'simple-git';
 import { RegistryManager, slugify } from './registry';
-import { Objective } from './types';
+import { Objective, Claim } from './types';
 import { loadConfig } from './config';
 import { runASTAudit } from './ast-verifier';
 
@@ -42,6 +42,7 @@ program
         startCommit,
         scope,
         status: 'active',
+        claims: [],
       };
       registry.addObjective(objective);
 
@@ -59,8 +60,38 @@ program
   });
 
 program
+  .command('claim <text>')
+  .description('Register a claim the AI made (to be physically verified)')
+  .action((text: string) => {
+    const current = registry.getCurrent();
+    if (!current) {
+      console.log('\x1b[33m[SHIELD: NO ACTIVE GOAL]\x1b[0m');
+      console.log('Run: shield goal "<objective>" first.');
+      process.exit(1);
+    }
+
+    const claim: Claim = {
+      id: `claim-${Date.now()}`,
+      text,
+      registeredAt: new Date().toISOString(),
+      verified: null,
+      lastVerifiedAt: null,
+      details: '',
+    };
+
+    registry.addClaim(current.id, claim);
+
+    console.log(`\x1b[32m[SHIELD: CLAIM REGISTERED]\x1b[0m`);
+    console.log(`  Objective: ${current.id}`);
+    console.log(`  Claim:     "${text}"`);
+    console.log(`  Registered: ${claim.registeredAt}`);
+    console.log('');
+    console.log('Run `shield verify` to check this claim against reality.');
+  });
+
+program
   .command('verify')
-  .description('Audit for orphans, stubs, type errors, worktree issues, and unrequested deps')
+  .description('Audit for orphans, stubs, type errors, worktree issues, deps, and claims')
   .action(() => {
     const current = registry.getCurrent();
     if (!current) {
@@ -118,9 +149,32 @@ program
       console.log('');
     }
 
+    if (result.claimResults.length > 0) {
+      console.log('\x1b[36m[CLAIMS VERIFIED]\x1b[0m');
+      for (const r of result.claimResults) {
+        if (r.duplicate) {
+          failed = true;
+          console.log(`  \x1b[31m✗ REPEATED CLAIM\x1b[0m "${r.claim.text}" — registered more than once without change`);
+          continue;
+        }
+        if (r.status === 'VERIFIED') {
+          console.log(`  \x1b[32m✓ VERIFIED\x1b[0m "${r.claim.text}"`);
+          console.log(`      → ${r.details}`);
+        } else if (r.status === 'FALSE') {
+          failed = true;
+          console.log(`  \x1b[31m✗ FALSE\x1b[0m "${r.claim.text}"`);
+          console.log(`      → ${r.details}`);
+        } else {
+          console.log(`  \x1b[33m? UNSUBSTANTIATED\x1b[0m "${r.claim.text}"`);
+          console.log(`      → ${r.details}`);
+        }
+      }
+      console.log('');
+    }
+
     if (!failed) {
       console.log('\x1b[32m[STATUS: ON TRACK]\x1b[0m');
-      console.log('No orphans, no stubs, type check passed, clean worktrees, no surprise deps.');
+      console.log('No orphans, no stubs, type check passed, clean worktrees, no surprise deps, claims verified.');
       process.exit(0);
     }
 
@@ -147,6 +201,7 @@ program
       console.log(`    Goal:    ${o.goal}`);
       console.log(`    Status:  ${color}${o.status}\x1b[0m`);
       console.log(`    Started: ${o.startTime}`);
+      console.log(`    Claims:  ${o.claims.length}`);
       console.log('');
     }
   });
