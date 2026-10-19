@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import simpleGit from 'simple-git';
+import * as path from 'path';
 import { RegistryManager, slugify } from './registry';
 import { Objective, Claim } from './types';
 import { loadConfig } from './config';
 import { runASTAudit } from './ast-verifier';
 import { archiveObjective } from './archiver';
+import { injectRules } from './rule-injector';
 
 const program = new Command();
 const cwd = process.cwd();
@@ -241,6 +243,25 @@ program
     const obj = registry.getCurrent();
     console.log(`\x1b[32m[SHIELD: SWITCHED]\x1b[0m Now tracking: ${obj?.id}`);
     console.log(`  Goal: ${obj?.goal}`);
+  });
+
+program
+  .command('inject-rules')
+  .description('Inject shield guardrails into .claude, .cursorrules, .clinerules, .windsurfrules, .antigravity')
+  .action(() => {
+    const results = injectRules(cwd);
+    console.log(`\x1b[36m[SHIELD: RULES INJECTED]\x1b[0m\n`);
+    const colorFor = (s: string) => {
+      if (s === 'created') return '\x1b[32m';
+      if (s === 'appended') return '\x1b[32m';
+      if (s === 'updated') return '\x1b[36m';
+      return '\x1b[33m';
+    };
+    for (const r of results) {
+      const rel = path.relative(cwd, r.path);
+      console.log(`  ${colorFor(r.status)}${r.status.padEnd(10)}\x1b[0m ${rel}`);
+    }
+    console.log('\nAll AI clients in this repo will now enforce these rules.');
   });
 
 program

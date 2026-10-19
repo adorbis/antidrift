@@ -2,6 +2,7 @@ import { Project } from 'ts-morph';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Claim, ClaimResult, Objective, ShieldConfig } from './types';
+import { hasStubInSourceFile } from './stub-detector';
 
 const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.next', '.shield']);
 
@@ -21,16 +22,12 @@ function walkSourceFiles(dir: string, acc: string[] = []): string[] {
 
 function extractCandidates(text: string): string[] {
   const candidates = new Set<string>();
-
   const quoted = text.match(/["'`]([^"'`]{2,40})["'`]/g) || [];
   for (const q of quoted) candidates.add(q.slice(1, -1));
-
   const camel = text.match(/\b[A-Z][a-z]+[A-Z]\w*\b/g) || [];
   for (const c of camel) candidates.add(c);
-
   const files = text.match(/\b[\w-]+\.(ts|tsx|js|jsx)\b/g) || [];
   for (const f of files) candidates.add(f);
-
   return Array.from(candidates);
 }
 
@@ -67,8 +64,6 @@ export function verifyClaim(
     'wired', 'integrated', 'connected', 'imported',
     'hooked up', 'registered', 'included in', 'mounted',
   ]);
-
-  // FIX #2: "built" / "build" now imply "complete" — must have no stubs
   const wantsComplete = claimMentions(claim.text, [
     'built', 'build',
     'complete', 'completed', 'done', 'finished',
@@ -82,15 +77,11 @@ export function verifyClaim(
     : null;
 
   const notes: string[] = [];
-  // FIX #1: track whether we actually found anything
   let foundCount = 0;
 
   for (const candidate of candidates) {
     const matches = findMatchingFiles(cwd, candidate);
-    if (matches.length === 0) {
-      // No file for this candidate — don't push to notes
-      continue;
-    }
+    if (matches.length === 0) continue;
 
     foundCount++;
 
@@ -98,7 +89,7 @@ export function verifyClaim(
       const rel = path.relative(cwd, match);
 
       if (wantsWired && project) {
-        const sf = project.getSourceFile(match);
+        const sf = project.getSourceFile(match) ?? project.addSourceFileAtPath(match);
         if (sf) {
           const refs = sf.getReferencingSourceFiles();
           if (refs.length === 0) {
@@ -111,12 +102,13 @@ export function verifyClaim(
         }
       }
 
-      if (wantsComplete) {
-        const text = fs.readFileSync(match, 'utf-8');
-        if (config.stubMarkers.some((m) => text.includes(m))) {
+      if (wantsComplete && project) {
+        // AST-level stub check — never raw text matching
+        const sf = project.getSourceFile(match) ?? project.addSourceFileAtPath(match);
+        if (sf && hasStubInSourceFile(sf, config.stubMarkers)) {
           return {
             status: 'FALSE',
-            details: `Claim mentions "${candidate}" is ${wantsComplete ? 'complete/built' : 'ready'}, but ${rel} contains stub markers`,
+            details: `Claim mentions "${candidate}" is complete/built, but ${rel} contains actual stub markers (comments or throw statements)`,
           };
         }
         notes.push(`"${candidate}": ${rel} exists with no stubs`);
@@ -129,7 +121,6 @@ export function verifyClaim(
     }
   }
 
-  // FIX #1: if nothing was found on disk, the claim is unsubstantiated — never verified
   if (foundCount === 0) {
     return {
       status: 'UNSUBSTANTIATED',
@@ -137,10 +128,7 @@ export function verifyClaim(
     };
   }
 
-  return {
-    status: 'VERIFIED',
-    details: notes.join('; '),
-  };
+  return { status: 'VERIFIED', details: notes.join('; ') };
 }
 
 export function verifyAllClaims(

@@ -7,6 +7,7 @@ import { runTypeCheck } from './type-checker';
 import { auditWorktrees } from './worktree-audit';
 import { auditPackages } from './package-audit';
 import { verifyAllClaims } from './claim-verifier';
+import { hasStubInSourceFile } from './stub-detector';
 
 function matchesIgnore(filePath: string, patterns: string[]): boolean {
   return patterns.some((p) => {
@@ -76,8 +77,10 @@ export function runASTAudit(
       const isEntry = config.entrypointPatterns.some((p) => filePath.includes(p));
       if (refs.length === 0 && !isEntry) orphans.push(filePath);
 
-      const text = sourceFile.getText();
-      if (config.stubMarkers.some((m) => text.includes(m))) stubs.push(filePath);
+      // AST-level stub detection — comments and throw statements only
+      if (hasStubInSourceFile(sourceFile, config.stubMarkers)) {
+        stubs.push(filePath);
+      }
     }
   }
 
