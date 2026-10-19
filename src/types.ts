@@ -24,6 +24,8 @@ export interface Objective {
   scope: string[];
   status: 'active' | 'completed';
   claims: Claim[];
+  completedAt?: string;
+  completedCommit?: string;
 }
 
 export interface Registry {

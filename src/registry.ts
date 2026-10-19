@@ -25,7 +25,6 @@ export class RegistryManager {
     if (!fs.existsSync(this.registryFile)) return this.emptyRegistry();
     try {
       const reg = JSON.parse(fs.readFileSync(this.registryFile, 'utf-8')) as Registry;
-      // Migrate: ensure every objective has a claims array
       for (const obj of Object.values(reg.objectives)) {
         if (!obj.claims) obj.claims = [];
       }
@@ -66,12 +65,25 @@ export class RegistryManager {
     this.save(reg);
   }
 
-  updateClaims(objectiveId: string, claims: Claim[]): void {
+  completeObjective(objectiveId: string, endCommit: string): void {
     const reg = this.load();
     const obj = reg.objectives[objectiveId];
     if (!obj) throw new Error(`Objective ${objectiveId} not found`);
-    obj.claims = claims;
+    obj.status = 'completed';
+    obj.completedAt = new Date().toISOString();
+    obj.completedCommit = endCommit;
+    if (reg.currentObjectiveId === objectiveId) {
+      reg.currentObjectiveId = null;
+    }
     this.save(reg);
+  }
+
+  switchObjective(objectiveId: string): boolean {
+    const reg = this.load();
+    if (!reg.objectives[objectiveId]) return false;
+    reg.currentObjectiveId = objectiveId;
+    this.save(reg);
+    return true;
   }
 }
 

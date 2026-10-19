@@ -5,6 +5,7 @@ import { RegistryManager, slugify } from './registry';
 import { Objective, Claim } from './types';
 import { loadConfig } from './config';
 import { runASTAudit } from './ast-verifier';
+import { archiveObjective } from './archiver';
 
 const program = new Command();
 const cwd = process.cwd();
@@ -69,7 +70,6 @@ program
       console.log('Run: shield goal "<objective>" first.');
       process.exit(1);
     }
-
     const claim: Claim = {
       id: `claim-${Date.now()}`,
       text,
@@ -78,20 +78,16 @@ program
       lastVerifiedAt: null,
       details: '',
     };
-
     registry.addClaim(current.id, claim);
-
     console.log(`\x1b[32m[SHIELD: CLAIM REGISTERED]\x1b[0m`);
     console.log(`  Objective: ${current.id}`);
     console.log(`  Claim:     "${text}"`);
     console.log(`  Registered: ${claim.registeredAt}`);
-    console.log('');
-    console.log('Run `shield verify` to check this claim against reality.');
   });
 
 program
   .command('verify')
-  .description('Audit for orphans, stubs, type errors, worktree issues, deps, and claims')
+  .description('Audit for orphans, stubs, types, worktrees, deps, and claims')
   .action(() => {
     const current = registry.getCurrent();
     if (!current) {
@@ -154,7 +150,7 @@ program
       for (const r of result.claimResults) {
         if (r.duplicate) {
           failed = true;
-          console.log(`  \x1b[31m✗ REPEATED CLAIM\x1b[0m "${r.claim.text}" — registered more than once without change`);
+          console.log(`  \x1b[31m✗ REPEATED CLAIM\x1b[0m "${r.claim.text}"`);
           continue;
         }
         if (r.status === 'VERIFIED') {
@@ -173,11 +169,10 @@ program
     }
 
     if (!failed) {
-      const unsubstantiated = result.claimResults.filter((r) => r.status === 'UNSUBSTANTIATED').length;
-      if (unsubstantiated > 0) {
-        console.log(`\x1b[33m[STATUS: ON TRACK — ${unsubstantiated} UNSUBSTANTIATED CLAIM(S)]\x1b[0m`);
+      const unsub = result.claimResults.filter((r) => r.status === 'UNSUBSTANTIATED').length;
+      if (unsub > 0) {
+        console.log(`\x1b[33m[STATUS: ON TRACK — ${unsub} UNSUBSTANTIATED CLAIM(S)]\x1b[0m`);
         console.log('Core checks passed, but some claims could not be proven true or false.');
-        console.log('Investigate: files may not exist yet, or AI claimed completion prematurely.');
         process.exit(0);
       }
       console.log('\x1b[32m[STATUS: ON TRACK]\x1b[0m');
@@ -191,7 +186,66 @@ program
   });
 
 program
-  .command('status')
+  .command('complete')
+  .description('Re-verify, then archive the milestone (blocks if drift detected)')
+  .action(async () => {
+    const current = registry.getCurrent();
+    if (!current) {
+      console.log('\x1b[33m[SHIELD: NO ACTIVE GOAL]\x1b[0m');
+      process.exit(1);
+    }
+
+    const config = loadConfig(cwd);
+    console.log(`\x1b[36m[SHIELD: COMPLETE — re-verifying before archive]\x1b[0m`);
+    console.log(`  Goal: ${current.goal}\n`);
+
+    const result = runASTAudit(cwd, config, current);
+
+    const failed =
+      result.orphans.length > 0 ||
+      result.stubs.length > 0 ||
+      !result.typeCheck.passed ||
+      result.worktreeIssues.length > 0 ||
+      result.packageIssues.length > 0 ||
+      result.claimResults.some((r) => r.status === 'FALSE' || r.duplicate);
+
+    if (failed) {
+      console.log('\x1b[31m[CANNOT ARCHIVE — verification failed]\x1b[0m');
+      console.log('Run `shield verify` to see details. Fix the issues, then try again.');
+      process.exit(1);
+    }
+
+    let endCommit = current.startCommit;
+    try {
+      endCommit = (await git.revparse(['HEAD'])).trim();
+    } catch {}
+
+    const report = archiveObjective(cwd, current, result, endCommit);
+    registry.completeObjective(current.id, endCommit);
+
+    console.log(`\x1b[32m[MILESTONE ARCHIVED]\x1b[0m`);
+    console.log(`  Objective:  ${current.id}`);
+    console.log(`  Duration:   ${report.durationMinutes} min`);
+    console.log(`  Report:     ${report.path}`);
+  });
+
+program
+  .command('switch <id>')
+  .description('Switch to a different active objective')
+  .action((id: string) => {
+    const success = registry.switchObjective(id);
+    if (!success) {
+      console.log(`\x1b[31m[SHIELD ERROR]\x1b[0m No objective with id "${id}"`);
+      process.exit(1);
+    }
+    const obj = registry.getCurrent();
+    console.log(`\x1b[32m[SHIELD: SWITCHED]\x1b[0m Now tracking: ${obj?.id}`);
+    console.log(`  Goal: ${obj?.goal}`);
+  });
+
+program
+  .command('list')
+  .alias('status')
   .description('Show all objectives')
   .action(() => {
     const objs = registry.list();
@@ -208,6 +262,7 @@ program
       console.log(`    Goal:    ${o.goal}`);
       console.log(`    Status:  ${color}${o.status}\x1b[0m`);
       console.log(`    Started: ${o.startTime}`);
+      if (o.completedAt) console.log(`    Ended:   ${o.completedAt}`);
       console.log(`    Claims:  ${o.claims.length}`);
       console.log('');
     }
