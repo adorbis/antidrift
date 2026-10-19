@@ -20,3 +20,12 @@ export interface Registry {
   objectives: Record<string, Objective>;
   currentObjectiveId: string | null;
 }
+
+export interface AuditResult {
+  passed: boolean;
+  skipped: boolean;
+  reason?: string;
+  changedFiles: string[];
+  orphans: string[];
+  stubs: string[];
+}

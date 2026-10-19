@@ -3,6 +3,8 @@ import { Command } from 'commander';
 import simpleGit from 'simple-git';
 import { RegistryManager, slugify } from './registry';
 import { Objective } from './types';
+import { loadConfig } from './config';
+import { runASTAudit } from './ast-verifier';
 
 const program = new Command();
 const cwd = process.cwd();
@@ -54,6 +56,55 @@ program
       console.error(`\x1b[31m[SHIELD ERROR]\x1b[0m ${err.message}`);
       process.exit(1);
     }
+  });
+
+program
+  .command('verify')
+  .description('Audit uncommitted changes for orphaned code and stubs')
+  .action(() => {
+    const current = registry.getCurrent();
+    if (!current) {
+      console.log('\x1b[33m[SHIELD: NO ACTIVE GOAL]\x1b[0m');
+      console.log('Run: shield goal "<objective>" first.');
+      process.exit(1);
+    }
+
+    const config = loadConfig(cwd);
+    console.log(`\x1b[36m[SHIELD: VERIFYING]\x1b[0m`);
+    console.log(`  Goal: ${current.goal}\n`);
+
+    const result = runASTAudit(cwd, config);
+
+    if (result.skipped) {
+      console.log(`\x1b[33m[SKIPPED]\x1b[0m ${result.reason}`);
+      return;
+    }
+
+    console.log(`  Files checked: ${result.changedFiles.length}`);
+    for (const f of result.changedFiles) console.log(`    • ${f}`);
+    console.log('');
+
+    if (result.passed) {
+      console.log('\x1b[32m[STATUS: ON TRACK]\x1b[0m');
+      console.log('No orphans, no stubs. All changed files are wired up.');
+      process.exit(0);
+    }
+
+    if (result.orphans.length > 0) {
+      console.log('\x1b[31m[ORPHANED FILES — never imported anywhere]\x1b[0m');
+      for (const f of result.orphans) console.log(`  ✗ ${f}`);
+      console.log('');
+    }
+
+    if (result.stubs.length > 0) {
+      console.log('\x1b[31m[STUBS DETECTED — TODO / FIXME / Not-implemented]\x1b[0m');
+      for (const f of result.stubs) console.log(`  ✗ ${f}`);
+      console.log('');
+    }
+
+    console.log('\x1b[31m[STATUS: DRIFT DETECTED]\x1b[0m');
+    console.log('Fix the above before committing.');
+    process.exit(1);
   });
 
 program
