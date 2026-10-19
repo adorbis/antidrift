@@ -21,6 +21,23 @@ export interface Registry {
   currentObjectiveId: string | null;
 }
 
+export interface TypeCheckResult {
+  passed: boolean;
+  skipped: boolean;
+  reason?: string;
+  errorOutput?: string;
+}
+
+export interface WorktreeIssue {
+  path: string;
+  issue: string;
+}
+
+export interface PackageIssue {
+  file: string;
+  message: string;
+}
+
 export interface AuditResult {
   passed: boolean;
   skipped: boolean;
@@ -28,4 +45,7 @@ export interface AuditResult {
   changedFiles: string[];
   orphans: string[];
   stubs: string[];
+  typeCheck: TypeCheckResult;
+  worktreeIssues: WorktreeIssue[];
+  packageIssues: PackageIssue[];
 }

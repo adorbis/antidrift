@@ -3,6 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ShieldConfig, AuditResult } from './types';
 import { getChangedFiles } from './git-audit';
+import { runTypeCheck } from './type-checker';
+import { auditWorktrees } from './worktree-audit';
+import { auditPackages } from './package-audit';
+import { Objective } from './types';
 
 function matchesIgnore(filePath: string, patterns: string[]): boolean {
   return patterns.some((p) => {
@@ -18,19 +22,28 @@ function isTypeScript(filePath: string): boolean {
   return filePath.endsWith('.ts') || filePath.endsWith('.tsx');
 }
 
-export function runASTAudit(cwd: string, config: ShieldConfig): AuditResult {
-  const skippedResult = (reason: string): AuditResult => ({
+function emptyResult(reason: string): AuditResult {
+  return {
     passed: true,
     skipped: true,
     reason,
     changedFiles: [],
     orphans: [],
     stubs: [],
-  });
+    typeCheck: { passed: true, skipped: true, reason },
+    worktreeIssues: [],
+    packageIssues: [],
+  };
+}
 
+export function runASTAudit(
+  cwd: string,
+  config: ShieldConfig,
+  objective: Objective
+): AuditResult {
   const tsconfigPath = path.resolve(cwd, config.tsconfigPath);
   if (!fs.existsSync(tsconfigPath)) {
-    return skippedResult(`No tsconfig at ${config.tsconfigPath} — AST check skipped`);
+    return emptyResult(`No tsconfig at ${config.tsconfigPath} — AST check skipped`);
   }
 
   const allChanged = getChangedFiles(cwd);
@@ -38,52 +51,56 @@ export function runASTAudit(cwd: string, config: ShieldConfig): AuditResult {
     (f) => isTypeScript(f) && !matchesIgnore(f, config.ignorePatterns)
   );
 
-  if (relevantChanged.length === 0) {
-    return skippedResult('No TypeScript changes to verify');
-  }
-
-  const project = new Project({ tsConfigFilePath: tsconfigPath });
-
-  // Explicitly add changed files not already in the project
-  // (e.g., new files outside the tsconfig include glob)
-  for (const filePath of relevantChanged) {
-    const abs = path.resolve(cwd, filePath);
-    if (!project.getSourceFile(abs)) {
-      try {
-        project.addSourceFileAtPath(abs);
-      } catch {
-        // Unparseable file — skip
-      }
-    }
-  }
-
   const orphans: string[] = [];
   const stubs: string[] = [];
 
-  for (const filePath of relevantChanged) {
-    const abs = path.resolve(cwd, filePath);
-    const sourceFile = project.getSourceFile(abs);
-    if (!sourceFile) continue;
+  if (relevantChanged.length > 0) {
+    const project = new Project({ tsConfigFilePath: tsconfigPath });
 
-    // 1. Orphan detection — is anything importing this file?
-    const refs = sourceFile.getReferencingSourceFiles();
-    const isEntry = config.entrypointPatterns.some((p) => filePath.includes(p));
-    if (refs.length === 0 && !isEntry) {
-      orphans.push(filePath);
+    for (const filePath of relevantChanged) {
+      const abs = path.resolve(cwd, filePath);
+      if (!project.getSourceFile(abs)) {
+        try {
+          project.addSourceFileAtPath(abs);
+        } catch {
+          // Unparseable — skip
+        }
+      }
     }
 
-    // 2. Stub detection — does the file contain a stub marker?
-    const text = sourceFile.getText();
-    if (config.stubMarkers.some((marker) => text.includes(marker))) {
-      stubs.push(filePath);
+    for (const filePath of relevantChanged) {
+      const abs = path.resolve(cwd, filePath);
+      const sourceFile = project.getSourceFile(abs);
+      if (!sourceFile) continue;
+
+      const refs = sourceFile.getReferencingSourceFiles();
+      const isEntry = config.entrypointPatterns.some((p) => filePath.includes(p));
+      if (refs.length === 0 && !isEntry) orphans.push(filePath);
+
+      const text = sourceFile.getText();
+      if (config.stubMarkers.some((m) => text.includes(m))) stubs.push(filePath);
     }
   }
 
+  const typeCheck = runTypeCheck(cwd, config);
+  const worktreeIssues = auditWorktrees(cwd);
+  const packageIssues = auditPackages(cwd, objective);
+
+  const passed =
+    orphans.length === 0 &&
+    stubs.length === 0 &&
+    typeCheck.passed &&
+    worktreeIssues.length === 0 &&
+    packageIssues.length === 0;
+
   return {
-    passed: orphans.length === 0 && stubs.length === 0,
+    passed,
     skipped: false,
     changedFiles: relevantChanged,
     orphans,
     stubs,
+    typeCheck,
+    worktreeIssues,
+    packageIssues,
   };
 }

@@ -60,7 +60,7 @@ program
 
 program
   .command('verify')
-  .description('Audit uncommitted changes for orphaned code and stubs')
+  .description('Audit for orphans, stubs, type errors, worktree issues, and unrequested deps')
   .action(() => {
     const current = registry.getCurrent();
     if (!current) {
@@ -73,33 +73,55 @@ program
     console.log(`\x1b[36m[SHIELD: VERIFYING]\x1b[0m`);
     console.log(`  Goal: ${current.goal}\n`);
 
-    const result = runASTAudit(cwd, config);
+    const result = runASTAudit(cwd, config, current);
 
-    if (result.skipped) {
-      console.log(`\x1b[33m[SKIPPED]\x1b[0m ${result.reason}`);
-      return;
+    if (result.changedFiles.length > 0) {
+      console.log(`  Files checked: ${result.changedFiles.length}`);
+      for (const f of result.changedFiles) console.log(`    • ${f}`);
+      console.log('');
     }
 
-    console.log(`  Files checked: ${result.changedFiles.length}`);
-    for (const f of result.changedFiles) console.log(`    • ${f}`);
-    console.log('');
-
-    if (result.passed) {
-      console.log('\x1b[32m[STATUS: ON TRACK]\x1b[0m');
-      console.log('No orphans, no stubs. All changed files are wired up.');
-      process.exit(0);
-    }
+    let failed = false;
 
     if (result.orphans.length > 0) {
+      failed = true;
       console.log('\x1b[31m[ORPHANED FILES — never imported anywhere]\x1b[0m');
       for (const f of result.orphans) console.log(`  ✗ ${f}`);
       console.log('');
     }
 
     if (result.stubs.length > 0) {
+      failed = true;
       console.log('\x1b[31m[STUBS DETECTED — TODO / FIXME / Not-implemented]\x1b[0m');
       for (const f of result.stubs) console.log(`  ✗ ${f}`);
       console.log('');
+    }
+
+    if (!result.typeCheck.skipped && !result.typeCheck.passed) {
+      failed = true;
+      console.log('\x1b[31m[TYPE CHECK FAILED]\x1b[0m');
+      console.log(result.typeCheck.errorOutput?.slice(0, 2000) || 'Unknown error');
+      console.log('');
+    }
+
+    if (result.worktreeIssues.length > 0) {
+      failed = true;
+      console.log('\x1b[31m[WORKTREE ISSUES]\x1b[0m');
+      for (const i of result.worktreeIssues) console.log(`  ✗ ${i.path}: ${i.issue}`);
+      console.log('');
+    }
+
+    if (result.packageIssues.length > 0) {
+      failed = true;
+      console.log('\x1b[31m[PACKAGE / LOCKFILE CHANGES DETECTED]\x1b[0m');
+      for (const i of result.packageIssues) console.log(`  ⚠ ${i.file}: ${i.message}`);
+      console.log('');
+    }
+
+    if (!failed) {
+      console.log('\x1b[32m[STATUS: ON TRACK]\x1b[0m');
+      console.log('No orphans, no stubs, type check passed, clean worktrees, no surprise deps.');
+      process.exit(0);
     }
 
     console.log('\x1b[31m[STATUS: DRIFT DETECTED]\x1b[0m');
