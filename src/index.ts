@@ -173,8 +173,15 @@ program
     }
 
     if (!failed) {
+      const unsubstantiated = result.claimResults.filter((r) => r.status === 'UNSUBSTANTIATED').length;
+      if (unsubstantiated > 0) {
+        console.log(`\x1b[33m[STATUS: ON TRACK — ${unsubstantiated} UNSUBSTANTIATED CLAIM(S)]\x1b[0m`);
+        console.log('Core checks passed, but some claims could not be proven true or false.');
+        console.log('Investigate: files may not exist yet, or AI claimed completion prematurely.');
+        process.exit(0);
+      }
       console.log('\x1b[32m[STATUS: ON TRACK]\x1b[0m');
-      console.log('No orphans, no stubs, type check passed, clean worktrees, no surprise deps, claims verified.');
+      console.log('No orphans, no stubs, type check passed, clean worktrees, no surprise deps, all claims verified.');
       process.exit(0);
     }
 

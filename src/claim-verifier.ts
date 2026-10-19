@@ -22,15 +22,12 @@ function walkSourceFiles(dir: string, acc: string[] = []): string[] {
 function extractCandidates(text: string): string[] {
   const candidates = new Set<string>();
 
-  // Quoted strings
   const quoted = text.match(/["'`]([^"'`]{2,40})["'`]/g) || [];
   for (const q of quoted) candidates.add(q.slice(1, -1));
 
-  // CamelCase words (AuthButton, LoginPage, etc.)
   const camel = text.match(/\b[A-Z][a-z]+[A-Z]\w*\b/g) || [];
   for (const c of camel) candidates.add(c);
 
-  // File-like tokens (auth.ts, login-page.tsx)
   const files = text.match(/\b[\w-]+\.(ts|tsx|js|jsx)\b/g) || [];
   for (const f of files) candidates.add(f);
 
@@ -62,12 +59,21 @@ export function verifyClaim(
   if (candidates.length === 0) {
     return {
       status: 'UNSUBSTANTIATED',
-      details: 'No verifiable entity found in claim text (no CamelCase/quoted/file names)',
+      details: 'No verifiable entity found in claim (no CamelCase, quoted names, or file names)',
     };
   }
 
-  const wantsWired = claimMentions(claim.text, ['wired', 'integrated', 'connected', 'imported', 'hooked up', 'registered', 'included in', 'mounted']);
-  const wantsComplete = claimMentions(claim.text, ['complete', 'done', 'finished', 'implemented', 'ready']);
+  const wantsWired = claimMentions(claim.text, [
+    'wired', 'integrated', 'connected', 'imported',
+    'hooked up', 'registered', 'included in', 'mounted',
+  ]);
+
+  // FIX #2: "built" / "build" now imply "complete" — must have no stubs
+  const wantsComplete = claimMentions(claim.text, [
+    'built', 'build',
+    'complete', 'completed', 'done', 'finished',
+    'implemented', 'ready',
+  ]);
 
   const tsconfigPath = path.resolve(cwd, config.tsconfigPath);
   const tsconfigExists = fs.existsSync(tsconfigPath);
@@ -76,13 +82,17 @@ export function verifyClaim(
     : null;
 
   const notes: string[] = [];
+  // FIX #1: track whether we actually found anything
+  let foundCount = 0;
 
   for (const candidate of candidates) {
     const matches = findMatchingFiles(cwd, candidate);
     if (matches.length === 0) {
-      notes.push(`"${candidate}": no matching file found`);
+      // No file for this candidate — don't push to notes
       continue;
     }
+
+    foundCount++;
 
     for (const match of matches) {
       const rel = path.relative(cwd, match);
@@ -106,9 +116,11 @@ export function verifyClaim(
         if (config.stubMarkers.some((m) => text.includes(m))) {
           return {
             status: 'FALSE',
-            details: `Claim mentions "${candidate}" is complete, but ${rel} contains stub markers`,
+            details: `Claim mentions "${candidate}" is ${wantsComplete ? 'complete/built' : 'ready'}, but ${rel} contains stub markers`,
           };
         }
+        notes.push(`"${candidate}": ${rel} exists with no stubs`);
+        continue;
       }
 
       if (!wantsWired && !wantsComplete) {
@@ -117,10 +129,11 @@ export function verifyClaim(
     }
   }
 
-  if (notes.length === 0) {
+  // FIX #1: if nothing was found on disk, the claim is unsubstantiated — never verified
+  if (foundCount === 0) {
     return {
       status: 'UNSUBSTANTIATED',
-      details: `Could not locate any referenced entity from the claim on disk`,
+      details: `No referenced entity found on disk (checked: ${candidates.join(', ')})`,
     };
   }
 
