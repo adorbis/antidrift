@@ -1,0 +1,10 @@
+{
+  "entrypointPatterns": [
+    "page.", "route.", "layout.", "loading.", "error.",
+    "index.", "main.", "app.", "server."
+  ],
+  "stubMarkers": ["// TODO", "// FIXME", "throw new Error(\"Not implemented\")"],
+  "ignorePatterns": ["node_modules/", "dist/", "build/", ".next/", "*.test.ts", "*.spec.ts"],
+  "enableTypeCheck": true,
+  "tsconfigPath": "./tsconfig.json"
+}

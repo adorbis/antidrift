@@ -1,0 +1,25 @@
+{
+  "name": "anti-drift-shield",
+  "version": "0.1.0",
+  "description": "Universal AI anti-drift engine, AST wiring verifier, and pre-commit gatekeeper",
+  "main": "dist/index.js",
+  "bin": {
+    "shield": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "simple-git": "^3.22.0",
+    "ts-morph": "^21.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
