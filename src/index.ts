@@ -19,7 +19,7 @@ const git = simpleGit(cwd);
 program
   .name('shield')
   .description('Anti-Drift Shield: universal AI verification engine')
-  .version('0.1.3');
+  .version(require('../package.json').version);
 
 program
   .command('goal <objective>')
