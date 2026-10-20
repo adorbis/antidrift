@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import simpleGit from 'simple-git';
+import * as fs from 'fs';
+import { execSync } from 'child_process';
 import * as path from 'path';
 import { RegistryManager, slugify } from './registry';
 import { Objective, Claim } from './types';
