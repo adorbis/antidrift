@@ -143,3 +143,20 @@ Every `git commit` from now on is verified.
 | `shield list` | Show all objectives |
 | `shield switch <id>` | Switch between parallel objectives |
 | `shield inject-rules` | Re-inject guardrails into AI client rule files |
+
+---
+
+## Using with AI Agents (Cursor, Antigravity, Claude Code)
+
+**Important:** Do NOT ask your AI agent to run `npm install -g antidrift` or `antidrift init`. Modern AI agents (correctly) block global installations and git hook modifications to prevent prompt injection.
+
+**You (the human) must run the setup:**
+1. Run `npm install -g antidrift` in your terminal.
+2. Run `antidrift init` in your project root.
+
+**Then, tell your AI agent to verify its work.** 
+Once the rules are injected into `.antigravity/rules.md` or `.cursorrules`, give your agent this prompt:
+
+> *"The Anti-Drift Shield is active. Before you ever declare a task complete or ask me to commit, you MUST run `antidrift verify` in the terminal and show me the output. If it says `[STATUS: DRIFT DETECTED]`, fix the orphans or stubs before finishing."*
+
+The AI will run the verify command, catch its own "ghost wiring," and fix it *before* handing the code back to you.
