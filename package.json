@@ -1,11 +1,45 @@
 {
-  "name": "anti-drift-shield",
+  "name": "antidrift",
   "version": "0.1.0",
-  "description": "Universal AI anti-drift engine, AST wiring verifier, and pre-commit gatekeeper",
+  "description": "Stop AI coding agents from lying about what they built",
+  "keywords": [
+    "ai",
+    "claude-code",
+    "cursor",
+    "antigravity",
+    "cline",
+    "windsurf",
+    "ai-agents",
+    "drift",
+    "verification",
+    "git-hooks",
+    "pre-commit",
+    "cli",
+    "typescript"
+  ],
+  "author": "Adorbis",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adorbis/antidrift.git"
+  },
+  "homepage": "https://github.com/adorbis/antidrift#readme",
+  "bugs": {
+    "url": "https://github.com/adorbis/antidrift/issues"
+  },
   "main": "dist/index.js",
   "bin": {
-    "shield": "./dist/index.js"
+    "shield": "dist/index.js",
+    "antidrift": "dist/index.js"
   },
+  "files": [
+    "dist/",
+    "install.sh",
+    "install.ps1",
+    ".shieldrc.example.json",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "prepare": "npm run build"
@@ -20,6 +54,6 @@
     "typescript": "^5.3.3"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   }
 }
