@@ -40,7 +40,7 @@ This is **AI drift**. It's silent, expensive, and universal.
 
 ## The solution
 
-`shield` is a verification engine that sits between your AI agent and `git commit`. It **physically verifies every claim** against your codebase.
+`antidrift` is a verification engine that sits between your AI agent and `git commit`. It **physically verifies every claim** against your codebase.
 
 | Check | What it catches |
 |-------|----------------|
@@ -52,20 +52,26 @@ This is **AI drift**. It's silent, expensive, and universal.
 | **False claims** | "I built X" / "X is wired" verified against reality |
 | **Repeated claims** | Same lie told twice without progress |
 
-If any check fails, `shield verify` **blocks the commit**.
+If any check fails, `antidrift verify` **blocks the commit**.
 
 ---
 
 ## Quick demo
 
+Here is what happens when an AI agent hallucinates and leaves "ghost wiring" (a file with a `// TODO` that isn't imported anywhere):
+
 ```bash
-$ shield goal "Add user profile settings page"
-[SHIELD: GOAL SET]  ID: add-user-profile-settings-page
+$ antidrift goal "Add user profile settings page"
 
-$ shield claim "I built the ProfileSettings component"
-$ shield claim "ProfileSettings is wired into the app"
+# ... your AI agent builds the feature and claims it's done ...
 
-$ shield verify
+$ antidrift verify
+
+[SHIELD: VERIFYING]
+  Goal: Add user profile settings page
+
+  Files checked: 1
+    • src/components/ProfileSettings.tsx
 
 [ORPHANED FILES — never imported anywhere]
   ✗ src/components/ProfileSettings.tsx
@@ -73,90 +79,5 @@ $ shield verify
 [STUBS DETECTED — TODO / FIXME / Not-implemented]
   ✗ src/components/ProfileSettings.tsx
 
-[CLAIMS VERIFIED]
-  ✓ VERIFIED "I built the ProfileSettings component"
-  ✗ FALSE     "ProfileSettings is wired into the app"
-
 [STATUS: DRIFT DETECTED]
 Fix the above before committing.
-```
-
----
-
-## Install
-
-**Requires Node.js 18+** — [download here](https://nodejs.org)
-
-### Any platform (npm)
-
-```bash
-npm install -g antidrift
-```
-
-Provides two binaries: `shield` and `antidrift`.
-
-### macOS (Homebrew)
-
-```bash
-brew install adorbis/tap/antidrift
-```
-
-### Windows (Scoop)
-
-```powershell
-scoop bucket add adorbis https://github.com/adorbis/scoop-bucket
-scoop install antidrift
-```
-
-### Verify install
-
-```bash
-shield --version
-```
-
----
-
-## Quick start
-
-```bash
-cd your-project
-shield init
-shield goal "What you're building"
-shield claim "<what the agent claimed>"
-shield verify
-shield complete
-```
-
-Every `git commit` from now on is verified.
-
----
-
-## CLI reference
-
-| Command | Description |
-|---|---|
-| `shield init` | Install pre-commit hook + inject AI guardrails + create config |
-| `shield goal "<text>"` | Set the active objective |
-| `shield claim "<text>"` | Register a claim the AI made |
-| `shield verify` | Full audit: orphans, stubs, types, worktrees, packages, claims |
-| `shield complete` | Re-verify, then archive the milestone |
-| `shield list` | Show all objectives |
-| `shield switch <id>` | Switch between parallel objectives |
-| `shield inject-rules` | Re-inject guardrails into AI client rule files |
-
----
-
-## Using with AI Agents (Cursor, Antigravity, Claude Code)
-
-**Important:** Do NOT ask your AI agent to run `npm install -g antidrift` or `antidrift init`. Modern AI agents (correctly) block global installations and git hook modifications to prevent prompt injection.
-
-**You (the human) must run the setup:**
-1. Run `npm install -g antidrift` in your terminal.
-2. Run `antidrift init` in your project root.
-
-**Then, tell your AI agent to verify its work.** 
-Once the rules are injected into `.antigravity/rules.md` or `.cursorrules`, give your agent this prompt:
-
-> *"The Anti-Drift Shield is active. Before you ever declare a task complete or ask me to commit, you MUST run `antidrift verify` in the terminal and show me the output. If it says `[STATUS: DRIFT DETECTED]`, fix the orphans or stubs before finishing."*
-
-The AI will run the verify command, catch its own "ghost wiring," and fix it *before* handing the code back to you.
