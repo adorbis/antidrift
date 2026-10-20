@@ -23,29 +23,16 @@ function isTypeScript(filePath: string): boolean {
   return filePath.endsWith('.ts') || filePath.endsWith('.tsx');
 }
 
-function emptyResult(reason: string): AuditResult {
-  return {
-    passed: true,
-    skipped: true,
-    reason,
-    changedFiles: [],
-    orphans: [],
-    stubs: [],
-    typeCheck: { passed: true, skipped: true, reason },
-    worktreeIssues: [],
-    packageIssues: [],
-    claimResults: [],
-  };
-}
-
 export function runASTAudit(
   cwd: string,
   config: ShieldConfig,
   objective: Objective
 ): AuditResult {
   const tsconfigPath = path.resolve(cwd, config.tsconfigPath);
-  if (!fs.existsSync(tsconfigPath)) {
-    return emptyResult(`No tsconfig at ${config.tsconfigPath} — AST check skipped`);
+  const hasTsconfig = fs.existsSync(tsconfigPath);
+
+  if (!hasTsconfig) {
+    console.log('\x1b[33m[SHIELD WARNING]\x1b[0m No tsconfig found. Parsing files with default config.');
   }
 
   const allChanged = getChangedFiles(cwd);
@@ -57,7 +44,10 @@ export function runASTAudit(
   const stubs: string[] = [];
 
   if (relevantChanged.length > 0) {
-    const project = new Project({ tsConfigFilePath: tsconfigPath });
+    // Fallback to default project config if tsconfig is missing
+    const project = hasTsconfig
+      ? new Project({ tsConfigFilePath: tsconfigPath })
+      : new Project({ compilerOptions: { allowJs: true, jsx: 1 } });
 
     for (const filePath of relevantChanged) {
       const abs = path.resolve(cwd, filePath);
@@ -77,7 +67,6 @@ export function runASTAudit(
       const isEntry = config.entrypointPatterns.some((p) => filePath.includes(p));
       if (refs.length === 0 && !isEntry) orphans.push(filePath);
 
-      // AST-level stub detection — comments and throw statements only
       if (hasStubInSourceFile(sourceFile, config.stubMarkers)) {
         stubs.push(filePath);
       }

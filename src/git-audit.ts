@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 
 export function getChangedFiles(cwd: string): string[] {
-  const status = execSync('git status --porcelain', { cwd, encoding: 'utf-8' });
+  const status = execSync('git status --porcelain -uall', { cwd, encoding: 'utf-8' });
   const files: string[] = [];
 
   for (const line of status.split('\n')) {
