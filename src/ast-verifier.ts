@@ -11,10 +11,21 @@ import { hasStubInSourceFile } from './stub-detector';
 
 const UNIVERSAL_STUB_PATTERNS = ['TODO', 'FIXME', 'Not implemented', 'NotImplemented', 'panic!("TODO', 'unimplemented!()', 'raise NotImplementedError'];
 
+function matchesIgnore(filePath: string, patterns: string[]): boolean {
+  return patterns.some((p) => {
+    if (p.includes('*')) {
+      const regex = new RegExp('^' + p.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+      return regex.test(filePath);
+    }
+    return filePath.startsWith(p) || filePath.includes('/' + p) || filePath.includes(p);
+  });
+}
+
 export function runASTAudit(cwd: string, config: ShieldConfig, objective: Objective): AuditResult {
   const allChanged = getChangedFiles(cwd);
   const orphans: string[] = [];
   const stubs: string[] = [];
+
   const tsFiles = allChanged.filter(f => f.endsWith('.ts') || f.endsWith('.tsx'));
   const otherFiles = allChanged.filter(f => !f.endsWith('.ts') && !f.endsWith('.tsx') && !f.endsWith('.md') && !f.endsWith('.json') && !matchesIgnore(f, config.ignorePatterns));
 
@@ -23,7 +34,11 @@ export function runASTAudit(cwd: string, config: ShieldConfig, objective: Object
     const hasTsconfig = fs.existsSync(tsconfigPath);
     if (!hasTsconfig) console.log('\x1b[33m[SHIELD WARNING]\x1b[0m No tsconfig found. Parsing TS with defaults.');
     const project = hasTsconfig ? new Project({ tsConfigFilePath: tsconfigPath }) : new Project({ compilerOptions: { allowJs: true, jsx: 1 } });
-    for (const f of tsFiles) { try { project.addSourceFileAtPath(path.resolve(cwd, f)); } catch {} }
+    
+    for (const f of tsFiles) { 
+      try { project.addSourceFileAtPath(path.resolve(cwd, f)); } catch {} 
+    }
+    
     for (const f of tsFiles) {
       const sf = project.getSourceFile(path.resolve(cwd, f));
       if (!sf) continue;
@@ -49,5 +64,6 @@ export function runASTAudit(cwd: string, config: ShieldConfig, objective: Object
 
   const claimsFailed = claimResults.some(r => r.status === 'FALSE' || r.duplicate);
   const passed = orphans.length === 0 && stubs.length === 0 && typeCheck.passed && worktreeIssues.length === 0 && packageIssues.length === 0 && !claimsFailed;
+  
   return { passed, skipped: false, changedFiles: allChanged, orphans, stubs, typeCheck, worktreeIssues, packageIssues, claimResults };
 }
