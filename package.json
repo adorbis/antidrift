@@ -1,6 +1,6 @@
 {
   "name": "antidrift",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Stop AI coding agents from lying about what they built",
   "keywords": [
     "ai",

@@ -6,25 +6,22 @@ export function getChangedFiles(cwd: string): string[] {
 
   for (const line of status.split('\n')) {
     if (!line.trim()) continue;
-    const xy = line.substring(0, 2);
-    if (xy.includes('D')) continue; // skip deleted
+    if (line.substring(0, 2).includes('D')) continue;
     files.push(line.substring(3).trim());
   }
 
-  // FALLBACK: If no changes, scan all .ts/.tsx files so we don't miss orphans in a clean repo
   if (files.length === 0) {
     try {
-      const findCmd = process.platform === 'win32'
-        ? 'dir /s /b *.ts *.tsx'
-        : 'find . -type f \\\\( -name "*.ts" -o -name "*.tsx" \\\\) -not -path "*/node_modules/*" -not -path "*/dist/*"';
-      
-      const allFiles = execSync(findCmd, { cwd, encoding: 'utf-8' }).toString();
+      const allFiles = execSync('git ls-files -co --exclude-standard', { cwd, encoding: 'utf-8' }).toString();
       for (let f of allFiles.split('\n')) {
-        f = f.trim().replace(/^\.\//, ''); // clean up ./ prefix
-        if (f) files.push(f);
+        f = f.trim();
+        if (f && (f.endsWith('.ts') || f.endsWith('.tsx'))) files.push(f);
       }
-    } catch { /* ignore errors during fallback scan */ }
+    } catch {}
   }
-
   return files;
+}
+
+export function isGitRepo(cwd: string): boolean {
+  try { execSync('git rev-parse --git-dir', { cwd, stdio: 'pipe' }); return true; } catch { return false; }
 }
