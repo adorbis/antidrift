@@ -12,7 +12,7 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D18-16E875.svg)](https://nodejs.org)
 [![GitHub stars](https://img.shields.io/github/stars/adorbis/antidrift.svg?style=social)](https://github.com/adorbis/antidrift)
 
-[Installation Guide](#installation-guide) · [Quick Start](#quick-start) · [CLI Reference](#cli-reference) · [AI Agents](#using-with-ai-agents) · [Config](#configuration)
+[Installation](#installation-guide) · [Quick Start](#quick-start) · [How It Works](#how-it-works) · [AI Agents](#using-with-ai-agents) · [Troubleshooting](#troubleshooting)
 
 </div>
 
@@ -40,19 +40,49 @@ This is **AI drift**. It's silent, expensive, and universal.
 
 ## The Solution
 
-`antidrift` is a verification engine that sits between your AI agent and `git commit`. It **physically verifies every claim** against your codebase.
+`antidrift` is a zero-trust verification engine that sits between your AI agent and `git commit`. It **physically verifies every claim** against your codebase before the code is allowed into Git history.
 
 | Check | What it catches |
 |-------|----------------|
-| **Orphans** | Files created on disk, never imported anywhere |
+| **Orphans** | Files created on disk, never imported anywhere (TS/JS AST) |
 | **Stubs** | `// TODO`, `// FIXME`, `throw new Error("Not implemented")` |
-| **Type errors** | `tsc --noEmit`, `cargo check`, `go build`, `compileall` |
+| **Type errors** | `tsc --noEmit`, `cargo check`, `go build`, `python compileall` |
 | **Worktrees** | Detached HEADs, uncommitted junk |
 | **Package drift** | Unrequested `package.json` / lockfile changes |
 | **False claims** | "I built X" / "X is wired" verified against reality |
 | **Repeated claims** | Same lie told twice without progress |
 
 If any check fails, `antidrift verify` **blocks the commit**.
+
+---
+
+## How It Works (The Architecture)
+
+`antidrift` is not a linter. It is a multi-layered verification protocol. Here is exactly what happens when you run `antidrift verify` or try to run `git commit`:
+
+1. **Git Diffing:** It checks `git status -uall` to find every file you (or the AI) have modified or created.
+2. **Language Router:** It auto-detects your project type by looking at the root directory (`tsconfig.json`, `requirements.txt`, `Cargo.toml`, `go.mod`).
+3. **Type Verification:** It runs the native compiler for your stack (e.g., `tsc --noEmit`, `cargo check`). If the code doesn't compile, the commit is blocked.
+4. **Universal Stub Scanner:** It parses the AST (for TS) or uses a regex engine (for Python, Rust, Go, Java) to find `TODO`s and `NotImplemented` exceptions.
+5. **Orphan Detection (AST):** Using `ts-morph`, it builds a dependency graph. If a file exists but is not imported by an entrypoint (`page.tsx`, `index.ts`, `app.py`, etc.), it is flagged as "ghost wiring" and deleted or fixed.
+6. **Claim Verification:** It checks the `shield claim` registry against the disk. If the AI said it built `AuthButton.tsx`, the file must exist and be properly wired.
+7. **AI Rule Injection:** It writes guardrails directly into `.cursorrules`, `.clinerules`, `.antigravity/rules.md`, and `CLAUDE.md`, training the AI *before* it writes the code.
+
+---
+
+## Compatible Languages & Frameworks
+
+We use a zero-bloat hybrid architecture. We do not pack heavy parsers into `node_modules`. We rely on the native compilers already installed on your machine.
+
+| Stack | Stub Detection | Type Check | Orphan/Wiring Detection |
+|-------|:---:|:---:|:---:|
+| **TypeScript / JS** | ✅ Full | ✅ Full (`tsc`) | ✅ Full (AST) |
+| **Python** | ✅ Full | ✅ Full (`compileall`) | ⚠️ Basic |
+| **Rust** | ✅ Full | ✅ Full (`cargo check`) | ⚠️ Basic |
+| **Go** | ✅ Full | ✅ Full (`go build`) | ⚠️ Basic |
+| **Java / C++ / Ruby** | ✅ Full (Regex) | — | — |
+
+*Note: If no configuration files are found, `antidrift` falls back to a universal stub scanner and will not crash.*
 
 ---
 
