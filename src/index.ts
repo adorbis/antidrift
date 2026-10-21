@@ -81,7 +81,7 @@ program.command('status').description('Show enforcement status').action(() => {
   const hookPath = path.join(cwd, '.git', 'hooks', 'pre-commit');
   const pausePath = path.join(cwd, '.shield', 'paused');
   const current = registry.getCurrent();
-  console.log('\\x1b[36m[SHIELD: STATUS]\\x1b[0m');
+  console.log('\x1b[36m[SHIELD: STATUS]\x1b[0m');
   console.log('  Initialized: ' + (fs.existsSync(path.join(cwd, '.shieldrc.json')) ? 'yes' : 'no'));
   console.log('  Git hook:    ' + (fs.existsSync(hookPath) ? 'installed' : 'missing'));
   console.log('  Enforcement: ' + (fs.existsSync(pausePath) ? 'PAUSED' : fs.existsSync(hookPath) ? 'ACTIVE' : 'INACTIVE'));
