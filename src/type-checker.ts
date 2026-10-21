@@ -4,38 +4,31 @@ import * as path from 'path';
 import { TypeCheckResult, ShieldConfig } from './types';
 
 export function runTypeCheck(cwd: string, config: ShieldConfig): TypeCheckResult {
-  if (!config.enableTypeCheck) {
-    return { passed: true, skipped: true, reason: 'Disabled in .shieldrc' };
-  }
+  if (!config.enableTypeCheck) return { passed: true, skipped: true, reason: 'Disabled in config' };
 
   const tsconfigPath = path.resolve(cwd, config.tsconfigPath);
-  if (!fs.existsSync(tsconfigPath)) {
-    return { passed: true, skipped: true, reason: `No tsconfig at ${config.tsconfigPath}` };
+  if (fs.existsSync(tsconfigPath)) {
+    try {
+      execSync(`npx tsc --noEmit -p "${tsconfigPath}"`, { cwd, stdio: 'pipe', timeout: 180_000 });
+    } catch (err: any) {
+      return { passed: false, skipped: false, errorOutput: `TypeScript Error:\n${err.stdout?.toString()}` };
+    }
   }
 
-  // Run tsc from the directory that contains tsconfig — that's where node_modules lives
-  const tsconfigDir = path.dirname(tsconfigPath);
-  const localTsc = path.join(tsconfigDir, 'node_modules', '.bin', 'tsc');
-  const hasLocalTsc = fs.existsSync(localTsc);
-
-  if (!hasLocalTsc) {
-    return {
-      passed: true,
-      skipped: true,
-      reason: `typescript not installed in ${path.relative(cwd, tsconfigDir)}/node_modules — run 'npm install' there`,
-    };
+  if (fs.existsSync(path.join(cwd, 'requirements.txt')) || fs.existsSync(path.join(cwd, 'pyproject.toml'))) {
+    try { execSync('python3 -m compileall -q .', { cwd, stdio: 'pipe' }); } 
+    catch (err: any) { return { passed: false, skipped: false, errorOutput: `Python Error:\n${err.stdout?.toString()}` }; }
   }
 
-  try {
-    execSync(`"${localTsc}" --noEmit`, {
-      cwd: tsconfigDir,
-      stdio: 'pipe',
-      encoding: 'utf-8',
-      timeout: 180_000,
-    });
-    return { passed: true, skipped: false };
-  } catch (err: any) {
-    const output = (err.stdout || '').toString() || err.message || 'Type check failed';
-    return { passed: false, skipped: false, errorOutput: output };
+  if (fs.existsSync(path.join(cwd, 'Cargo.toml'))) {
+    try { execSync('cargo check --quiet', { cwd, stdio: 'pipe' }); } 
+    catch (err: any) { return { passed: false, skipped: false, errorOutput: `Rust Error:\n${err.stderr?.toString()}` }; }
   }
+
+  if (fs.existsSync(path.join(cwd, 'go.mod'))) {
+    try { execSync('go build ./...', { cwd, stdio: 'pipe' }); } 
+    catch (err: any) { return { passed: false, skipped: false, errorOutput: `Go Error:\n${err.stderr?.toString()}` }; }
+  }
+
+  return { passed: true, skipped: false };
 }
