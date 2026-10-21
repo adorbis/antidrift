@@ -414,3 +414,7 @@ Anti-Drift Shield is distributed under the **Apache License 2.0**. See the [`LIC
 Built by [Adorbis](https://github.com/adorbis).
 
 </div>
+Detected languages: TypeScript (backend/)
+Configured tsconfigPath: ./backend/tsconfig.json
+Files being scanned: 47
+Scanning: ✅ Active
