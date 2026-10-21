@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import updateNotifier from 'update-notifier';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
 import * as path from 'path';
@@ -12,9 +11,8 @@ import { runASTAudit } from './ast-verifier';
 import { archiveObjective } from './archiver';
 import { injectRules } from './rule-injector';
 
-const pkg = require('../package.json');
-updateNotifier({ pkg }).notify();
 
+const pkg = require('../package.json');
 const program = new Command();
 const cwd = process.cwd();
 const registry = new RegistryManager(cwd);
