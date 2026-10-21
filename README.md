@@ -12,13 +12,13 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D18-16E875.svg)](https://nodejs.org)
 [![GitHub stars](https://img.shields.io/github/stars/adorbis/antidrift.svg?style=social)](https://github.com/adorbis/antidrift)
 
-[Install](#install) · [Quick Start](#quick-start) · [CLI Reference](#cli-reference) · [Config](#configuration) · [FAQ](#faq)
+[Installation Guide](#installation-guide) · [Quick Start](#quick-start) · [CLI Reference](#cli-reference) · [AI Agents](#using-with-ai-agents) · [Config](#configuration)
 
 </div>
 
 ---
 
-## The problem
+## The Problem: AI Drift & Ghost Wiring
 
 You ask Claude Code, Cursor, or Antigravity to build a feature. It says:
 
@@ -38,7 +38,7 @@ This is **AI drift**. It's silent, expensive, and universal.
 
 ---
 
-## The solution
+## The Solution
 
 `antidrift` is a verification engine that sits between your AI agent and `git commit`. It **physically verifies every claim** against your codebase.
 
@@ -56,23 +56,7 @@ If any check fails, `antidrift verify` **blocks the commit**.
 
 ---
 
-## Compatible languages & frameworks
-
-`antidrift` uses a zero-bloat hybrid architecture. It relies on native toolchains for type checks and a universal scanner for stubs.
-
-| Stack | Stub Detection | Type Check | Orphan/Wiring Detection |
-|-------|:---:|:---:|:---:|
-| **TypeScript / JS** | ✅ Full | ✅ Full (`tsc`) | ✅ Full (AST) |
-| **Python** | ✅ Full | ✅ Full (`compileall`) | ⚠️ Basic |
-| **Rust** | ✅ Full | ✅ Full (`cargo check`) | ⚠️ Basic |
-| **Go** | ✅ Full | ✅ Full (`go build`) | ⚠️ Basic |
-| **Java / C++ / Ruby** | ✅ Full (Regex) | — | — |
-
-*Note: We do not bloat your `node_modules` with heavy parsers. `antidrift` automatically detects your language at the project root and runs the native compiler already installed on your machine.*
-
----
-
-## Quick demo
+## Quick Demo
 
 Here is what happens when an AI agent hallucinates and leaves "ghost wiring" (a file with a `// TODO` that isn't imported anywhere):
 
