@@ -1,301 +1,301 @@
-```markdown
-<div align="center">
+ <div align="center">
 
-<img src="https://static.wixstatic.com/media/aec640_65cb8c2dccf448bab431f8fdf05d0a85~mv2.jpg" alt="Anti-Drift Shield" width="600" />
+<img src="https://static.wixstatic.com/media/aec640_65cb8c2dccf448bab431f8fdf05d0a85~mv2.jpg" alt="Anti-Drift Shield" width="560" />
 
 # Anti-Drift Shield
 
-**Stop AI coding agents from lying about what they built.**
+### Verifiable Engineering for AI-Assisted Software Development
+
+**Stop AI coding agents from claiming success without verifiable evidence.**
+
+Anti-Drift Shield is a verification and enforcement tool designed to detect incomplete implementations, orphaned files, unfulfilled claims, and code-quality issues before changes enter Git history.
 
 [![npm version](https://img.shields.io/npm/v/antidrift.svg?color=075CE5)](https://www.npmjs.com/package/antidrift)
 [![npm downloads](https://img.shields.io/npm/dm/antidrift.svg)](https://www.npmjs.com/package/antidrift)
-[![License](https://img.shields.io/badge/license-Apache--2.0-00B9E8.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D18-16E875.svg)](https://nodejs.org)
-[![GitHub stars](https://img.shields.io/github/stars/adorbis/antidrift.svg?style=social)](https://github.com/adorbis/antidrift)
+[![License](https://img.shields.io/badge/License-Apache--2.0-00B9E8.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933.svg)](https://nodejs.org/)
+[![GitHub](https://img.shields.io/github/stars/adorbis/antidrift?style=social)](https://github.com/adorbis/antidrift)
 
-[The Problem](#the-problem) · [The Solution](#the-solution) · [How It Works](#how-it-works) · [Installation](#installation-guide-complete-step-by-step) · [Quick Start](#quick-start) · [CLI Reference](#cli-reference) · [AI Agents](#using-with-ai-agents) · [FAQ](#troubleshooting--faq)
+[Problem](#the-problem) · [Solution](#the-solution) · [Architecture](#how-it-works) · [Installation](#installation) · [Quick Start](#quick-start) · [CLI](#cli-reference) · [AI Agents](#integration-with-ai-coding-agents) · [Contributing](#contributing)
 
 </div>
 
 ---
 
-## The Problem: AI Drift & Ghost Wiring
+## Table of Contents
 
-You ask Claude Code, Cursor, or Antigravity to build a feature. It says:
-
-> *"Done — I've created the auth component and wired it into the app."*
-
-You check. The file exists. You trust it. You commit. You move on.
-
-Three weeks later at merge time, you discover:
-
-- The file was **never imported anywhere** (orphaned)
-- Half its functions are `// TODO` stubs
-- The "wired" claim was a **hallucination**
-
-You spend a week untangling. Multiply by every AI session across the project. **That's months of your life.**
-
-This is **AI drift**. It happens because LLMs suffer from context degradation over long sessions. They lose track of the original objective, hallucinate success, and leave "ghost wiring" behind. It is silent, expensive, and universal.
+- [The Problem](#the-problem)
+- [The Solution](#the-solution)
+- [Core Capabilities](#core-capabilities)
+- [How It Works](#how-it-works)
+- [Supported Languages](#supported-languages)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [CLI Reference](#cli-reference)
+- [Integration with AI Coding Agents](#integration-with-ai-coding-agents)
+- [Configuration](#configuration)
+- [Example Verification](#example-verification)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
+
+## The Problem
+
+AI coding agents can generate code quickly, but generated code is not necessarily complete, connected, or correct.
+
+An agent may report that a feature is finished even when:
+
+- A newly created file is never imported or used.
+- Critical functions contain unfinished implementations or placeholder logic.
+- A change does not compile or pass the relevant checks.
+- Package manifests or lockfiles contain unintended changes.
+- A declared implementation cannot be verified against the repository.
+- Repeated sessions report progress without delivering the required result.
+
+These failures create **AI drift**: a growing gap between what an AI agent claims to have implemented and what the codebase actually contains.
+
+The consequences include wasted engineering time, unreliable commits, difficult reviews, and increased maintenance costs.
 
 ## The Solution
 
-`antidrift` is a zero-trust verification engine that sits between your AI agent and `git commit`. It **physically verifies every claim** against your codebase before the code is allowed into Git history. 
+Anti-Drift Shield (`antidrift`) introduces a verification layer into the software development workflow.
 
-It is not a linter. It is a pre-commit gatekeeper and a rule-injector.
+It combines repository inspection, implementation checks, language-specific validation, claim tracking, and Git pre-commit enforcement to help identify discrepancies before code is committed.
 
-| Check | What it catches |
-|-------|----------------|
-| **Orphans** | Files created on disk, never imported anywhere (TS/JS AST) |
-| **Stubs** | `// TODO`, `// FIXME`, `throw new Error("Not implemented")` |
-| **Type errors** | `tsc --noEmit`, `cargo check`, `go build`, `python compileall` |
-| **Worktrees** | Detached HEADs, uncommitted junk |
-| **Package drift** | Unrequested `package.json` / lockfile changes |
-| **False claims** | "I built X" / "X is wired" verified against reality |
-| **Repeated claims** | Same lie told twice without progress |
+Rather than relying exclusively on an AI agent's completion message, developers can run an explicit verification command against the current working tree.
 
-If any check fails, `antidrift verify` **blocks the commit**.
+**The principle is simple: verify the implementation, not just the claim.**
 
----
+## Core Capabilities
 
-## How It Works (The Architecture)
+| Capability | Purpose |
+|---|---|
+| Orphan detection | Identify potentially disconnected TypeScript and JavaScript files. |
+| Stub detection | Detect common TODO, FIXME, and not-implemented markers. |
+| Language validation | Run applicable compiler or build checks for supported project types. |
+| Git worktree inspection | Identify relevant repository-state issues, including detached HEADs and uncommitted changes. |
+| Package drift detection | Help identify unintended package manifest and lockfile modifications. |
+| Claim verification | Compare registered implementation claims with repository evidence. |
+| Progress tracking | Maintain objectives and detect repeated claims without corresponding progress. |
+| Pre-commit enforcement | Run configured verification checks before a Git commit proceeds. |
+| AI instruction integration | Add project guardrails to supported AI coding-agent configuration files. |
+| Milestone reporting | Re-verify work and archive completion reports. |
 
-`antidrift` is a multi-layered verification protocol. Here is exactly what happens when you run `antidrift verify` or try to run `git commit`:
+*Detection and enforcement depend on the project configuration, supported language, and checks implemented by the installed version. A successful verification is not a guarantee that software is defect-free.*
 
-1. **Git Diffing:** It checks `git status -uall` to find every file you (or the AI) have modified, created, or staged.
-2. **Language Router:** It auto-detects your project type by looking at the root directory (`tsconfig.json`, `requirements.txt`, `Cargo.toml`, `go.mod`).
-3. **Type Verification:** It runs the native compiler for your stack (e.g., `tsc --noEmit`, `cargo check`). If the code doesn't compile, the commit is blocked.
-4. **Universal Stub Scanner:** It parses the AST (for TS) or uses a regex engine (for Python, Rust, Go, Java) to find `TODO`s and `NotImplemented` exceptions.
-5. **Orphan Detection (AST):** Using `ts-morph`, it builds a dependency graph. If a file exists but is not imported by an entrypoint (`page.tsx`, `index.ts`, `app.py`, etc.), it is flagged as "ghost wiring" and deleted or fixed.
-6. **Claim Verification:** It checks the `shield claim` registry against the disk. If the AI said it built `AuthButton.tsx`, the file must exist and be properly wired.
-7. **AI Rule Injection:** It writes guardrails directly into `.cursorrules`, `.clinerules`, `.antigravity/rules.md`, and `CLAUDE.md`, training the AI *before* it writes the code.
+## How It Works
 
----
+Anti-Drift Shield uses a layered verification workflow.
 
-## Compatible Languages & Frameworks
+1. **Repository inspection** — examines the Git working tree and identifies relevant changed, staged, and untracked files.
+2. **Project detection** — identifies available project configuration files to select applicable validation checks.
+3. **Compiler and build checks** — runs supported native validation tools where applicable.
+4. **Stub scanning** — searches for common indicators of unfinished implementations.
+5. **Dependency and wiring analysis** — uses TypeScript/JavaScript analysis to identify files that may not be connected to application entry points.
+6. **Claim verification** — compares registered claims against available repository evidence.
+7. **Git enforcement** — integrates verification into the commit workflow through a pre-commit hook.
+8. **AI workflow guidance** — injects supported repository-level instructions to encourage agents to verify their work before reporting completion.
 
-We use a zero-bloat hybrid architecture. We do not pack heavy parsers into `node_modules`. We rely on the native compilers already installed on your machine.
+The objective is to make implementation status more observable and to catch common forms of incomplete work before they become part of Git history.
 
-| Stack | Stub Detection | Type Check | Orphan/Wiring Detection |
-|-------|:---:|:---:|:---:|
-| **TypeScript / JS** | ✅ Full | ✅ Full (`tsc`) | ✅ Full (AST) |
-| **Python** | ✅ Full | ✅ Full (`compileall`) | ⚠️ Basic |
-| **Rust** | ✅ Full | ✅ Full (`cargo check`) | ⚠️ Basic |
-| **Go** | ✅ Full | ✅ Full (`go build`) | ⚠️ Basic |
-| **Java / C++ / Ruby** | ✅ Full (Regex) | — | — |
+## Supported Languages
 
-*Note: If no configuration files are found, `antidrift` falls back to a universal stub scanner and will not crash.*
+The project uses a hybrid approach that combines language-specific analysis with native tooling.
 
----
+| Language / Stack | Stub Detection | Build or Type Validation | Wiring Analysis |
+|---|---|---|---|
+| TypeScript / JavaScript | Supported | TypeScript checks where configured | AST-based analysis |
+| Python | Supported | Python compilation checks | Basic |
+| Rust | Supported | Cargo checks | Basic |
+| Go | Supported | Go build checks | Basic |
+| Java / C++ / Ruby | Pattern-based | Not listed as supported in the supplied matrix | Not listed as supported in the supplied matrix |
 
-## Quick Demo
+The depth of analysis varies by language. For stacks without dedicated dependency analysis, orphan detection should not be treated as equivalent to the TypeScript/JavaScript analysis.
 
-Here is what happens when an AI agent hallucinates and leaves "ghost wiring" (a file with a `// TODO` that isn't imported anywhere):
+When a recognized project configuration is unavailable, the tool can fall back to its general stub-scanning behavior.
 
-```bash
-$ antidrift goal "Add user profile settings page"
+## Installation
 
-# ... your AI agent builds the feature and claims it's done ...
+### Prerequisites
 
-$ antidrift verify
+- Node.js 18 or later
+- npm
+- Git
+- A local Git repository in which you want to enable verification
 
-[SHIELD: VERIFYING]
-  Goal: Add user profile settings page
+Check your installed versions:
 
-  Files checked: 1
-    • src/components/ProfileSettings.tsx
-
-[ORPHANED FILES — never imported anywhere]
-  ✗ src/components/ProfileSettings.tsx
-
-[STUBS DETECTED — TODO / FIXME / Not-implemented]
-  ✗ src/components/ProfileSettings.tsx
-
-[STATUS: DRIFT DETECTED]
-Fix the above before committing.
-```
-
-The AI is now forced to fix the missing imports and remove the `// TODO` before it can declare the task complete.
-
----
-
-## Installation Guide (Complete Step-by-Step)
-
-This guide walks you through the entire process from zero. Do not skip steps.
-
-### Step 1: Install Node.js (Required)
-`antidrift` runs on Node.js. If you don't have it installed, you need to install it first.
-
-**Check if you already have Node.js:**
-Open your terminal (Terminal on Mac/Linux, PowerShell on Windows) and type:
 ```bash
 node --version
-```
-
-- ✅ If it prints `v18.x.x` or higher, you're good. Skip to Step 2.
-- ❌ If it says "command not found," download and install the LTS version from **[nodejs.org](https://nodejs.org)**. Just click the big green button, run the installer, and click "Next" until it's done. Then close and reopen your terminal.
-
-### Step 2: Install Git (Required)
-`antidrift` uses Git hooks. If you don't have Git:
-```bash
+npm --version
 git --version
 ```
 
-- ✅ If it prints a version, skip to Step 3.
-- ❌ If it fails, install Git from **[git-scm.com](https://git-scm.com/downloads)**.
+### Install using npm
 
-### Step 3: Install Anti-Drift Shield
-
-Choose the method for your operating system:
-
-#### 🍎 macOS
-The easiest way is via npm:
 ```bash
 npm install -g antidrift
 ```
 
-Or if you use Homebrew:
-```bash
-brew install adorbis/tap/antidrift
-```
+Alternatively, use the project's documented package-manager distribution where available.
 
-#### 🪟 Windows
-Open **PowerShell** (right-click Start, select "Terminal (Admin)" or "PowerShell Admin"):
-```powershell
-npm install -g antidrift
-```
-
-Or if you use Scoop:
-```powershell
-scoop bucket add adorbis https://github.com/adorbis/scoop-bucket
-scoop install antidrift
-```
-
-#### 🐧 Linux (Ubuntu/Debian/Fedora/Arch)
-```bash
-sudo npm install -g antidrift
-```
-
-*(If you get a permission error, use `nvm` or run `npm install -g antidrift` without sudo after fixing your npm prefix).*
-
-### Step 4: Verify the Installation
-Confirm the tool is available globally on your system:
+### Verify the installation
 
 ```bash
 antidrift --version
 ```
 
-**Expected Output:**
-```
-0.2.5
-```
+### Initialize a repository
 
-If you see a version number, you're done installing! If you get a "command not found" error, close and reopen your terminal, then try again.
-
-### Step 5: Use It In Your Project
-
-Navigate to any existing Git repository (or create a new one with `git init`):
+Navigate to your project root:
 
 ```bash
 cd /path/to/your/project
 ```
 
-Then initialize the shield:
+Initialize Anti-Drift Shield:
+
 ```bash
 antidrift init
 ```
 
-**Expected Output:**
-```
-[SHIELD] Pre-commit hook installed
-[SHIELD] Rules injected into 6 AI client configs
-[SHIELD] Created .shieldrc.json
-[SHIELD READY]
-```
+Initialization is intended to configure the project's verification hook, applicable AI-agent guardrails, and `.shieldrc.json` configuration.
 
-That's it. Every `git commit` in this project is now physically verified. 🛡️
+Review the resulting changes before proceeding.
 
----
+## Quick Start
 
-## Quick Start (The Daily Loop)
+Use the following workflow during development.
+
+### 1. Initialize the repository
 
 ```bash
-cd your-project
-
-# 1. Initialize the hook and AI rules
 antidrift init
+```
 
-# 2. Set your objective
-antidrift goal "What you're building"
+### 2. Define the active objective
 
-# 3. When the AI claims it's done, verify:
+```bash
+antidrift goal "Implement user profile settings"
+```
+
+### 3. Implement the requested work
+
+Use your preferred editor or AI coding agent.
+
+### 4. Verify the implementation
+
+```bash
 antidrift verify
+```
 
-# 4. Archive the milestone when complete
+Review the verification output and resolve any reported issues.
+
+### 5. Complete the milestone
+
+```bash
 antidrift complete
 ```
 
----
+The completion command is intended to re-verify the work and archive a milestone report.
+
+**Recommended practice:** Review the Git diff and the verification output before committing important changes.
 
 ## CLI Reference
 
 ### Core Commands
+
 | Command | Description |
 |---|---|
-| `antidrift init` | Install pre-commit hook + inject AI guardrails + create config |
-| `antidrift goal "<text>"` | Set the active objective (records start commit) |
-| `antidrift claim "<text>"` | Register a claim the AI made |
-| `antidrift verify` | Full audit: orphans, stubs, types, worktrees, packages, claims |
-| `antidrift complete` | Re-verify, then archive the milestone report |
-| `antidrift list` | Show all objectives |
+| `antidrift init` | Initialize repository verification and supported AI guardrails. |
+| `antidrift goal "<text>"` | Set the active development objective. |
+| `antidrift claim "<text>"` | Register an implementation claim. |
+| `antidrift verify` | Run the available verification checks. |
+| `antidrift complete` | Re-verify and archive the milestone report. |
+| `antidrift list` | Display recorded objectives. |
 
 ### Lifecycle Commands
+
 | Command | Description |
 |---|---|
-| `antidrift status` | Show whether the hook is installed, paused, or active |
-| `antidrift pause` | Temporarily pause verification |
-| `antidrift resume` | Re-enable verification after a pause |
-| `antidrift disable` | Remove the pre-commit hook (backup kept) |
+| `antidrift status` | Inspect the verification lifecycle state. |
+| `antidrift pause` | Temporarily pause verification. |
+| `antidrift resume` | Re-enable verification. |
+| `antidrift disable` | Remove the pre-commit hook while retaining its backup, as supported by the implementation. |
 
-**Emergency bypass:**
-If you need to commit an urgent hotfix and the tool is blocking you, run `antidrift pause`, commit, then `antidrift resume`. This is cleaner than `git commit --no-verify` because it's explicit and self-documenting.
+### Emergency workflow
 
----
+If verification blocks an urgent change, use the explicit pause-and-resume workflow only when appropriate:
 
-## Using with AI Agents (Cursor, Antigravity, Claude Code)
+```bash
+antidrift pause
 
-**Important:** Do NOT ask your AI agent to run `npm install -g antidrift` or `antidrift init`. Modern AI agents (correctly) block global installations and git hook modifications to prevent prompt injection.
+# Commit the urgent change after reviewing the risks.
+git commit -m "Apply urgent hotfix"
 
-**You (the human) must run the setup:**
-1. Run `npm install -g antidrift` in your terminal.
-2. Run `antidrift init` in your project root.
+antidrift resume
+```
 
-**Then, tell your AI agent to verify its work.** 
-Once the rules are injected into `.antigravity/rules.md` or `.cursorrules`, give your agent this prompt:
+Pausing verification reduces protection for the affected commit. Restore verification promptly and run the checks manually where possible.
 
-> *"The Anti-Drift Shield is active. Before you ever declare a task complete or ask me to commit, you MUST run `antidrift verify` in the terminal and show me the output. If it says `[STATUS: DRIFT DETECTED]`, fix the orphans or stubs before finishing."*
+## Integration with AI Coding Agents
 
-The AI will run the verify command, catch its own "ghost wiring," and fix it *before* handing the code back to you.
+Anti-Drift Shield is designed to complement AI-assisted development workflows, including tools such as Claude Code, Cursor, and Antigravity.
 
----
+### Recommended setup
 
-## Configuration (`.shieldrc.json`)
+Run installation and initialization commands yourself in the intended repository:
 
-`antidrift` reads `.shieldrc.json` from your project root. `antidrift init` creates it with sensible defaults:
+```bash
+npm install -g antidrift
+cd /path/to/your/project
+antidrift init
+```
+
+Review the generated configuration and AI-agent instruction changes.
+
+### Recommended agent instruction
+
+After setup, give your coding agent the following instruction:
+
+> Before declaring a task complete or asking me to commit, run `antidrift verify` and show the verification output. If verification reports drift, investigate the findings, correct the relevant issues, and run verification again. Do not claim that a feature is implemented or connected unless the available repository evidence supports that claim. Report any remaining failures or limitations explicitly.
+
+This instruction encourages the agent to use repository evidence instead of relying exclusively on its own completion statement.
+
+**Important:** Verification results should be reviewed critically. Passing automated checks does not prove that requirements are fully satisfied, that application behavior is correct, or that security issues are absent.
+
+## Configuration
+
+Anti-Drift Shield uses `.shieldrc.json` in the project root.
+
+An illustrative configuration based on the supplied project documentation is shown below. Prefer the configuration generated by your installed version and verify that its accepted fields match this example.
 
 ```json
 {
   "tsconfigPath": "./tsconfig.json",
-  "entrypointPatterns": ["page.", "route.", "layout.", "index.", "main.", "app.", "serve."],
-  "stubMarkers": ["// TODO", "// FIXME", "throw new Error(\"Not implemented\")"],
+  "entrypointPatterns": [
+    "page.",
+    "route.",
+    "layout.",
+    "index.",
+    "main.",
+    "app.",
+    "serve."
+  ],
+  "stubMarkers": [
+    "// TODO",
+    "// FIXME",
+    "throw new Error(\"Not implemented\")"
+  ],
   "ignorePatterns": [
-    "node_modules/", 
-    "dist/", 
-    ".next/", 
-    "*.test.ts", 
-    ".cursorrules", 
-    ".clinerules", 
+    "node_modules/",
+    "dist/",
+    ".next/",
+    "*.test.ts",
+    ".cursorrules",
+    ".clinerules",
     ".windsurfrules",
     ".antigravity/"
   ],
@@ -303,50 +303,114 @@ The AI will run the verify command, catch its own "ghost wiring," and fix it *be
 }
 ```
 
----
+### Configuration considerations
 
-## Battle-Tested: Real-World Case Study
+- **`tsconfigPath`** — points to the TypeScript configuration used by the project.
+- **`entrypointPatterns`** — identifies filename patterns used during entry-point analysis.
+- **`stubMarkers`** — lists patterns that may indicate unfinished implementation.
+- **`ignorePatterns`** — excludes configured files and directories from applicable scans.
+- **`enableTypeCheck`** — controls the configured type-checking behavior where supported.
 
-On October 21, 2026, `antidrift` was deployed to a live Python environment (the INFUSE project) under a `STRICT HOLD`. An AI agent (Antigravity) was tasked with implementing a distributed, multi-process Redis budget architecture.
+For monorepos, ensure that the configuration points to the correct application or package. Review ignore patterns carefully so that important production code is not excluded from verification.
 
-- The AI wrote **2,107 lines of code** across Lua scripts, Python store wrappers, and multi-process tests.
-- Before the commit, `antidrift verify` ran. It successfully parsed the Python code, verified the imports, and ensured no stubs were left behind.
-- The pre-commit hook physically secured the 2,000+ line commit, ensuring the code passed all 1,281 tests before hitting Git history.
+## Example Verification
 
----
+The following is an illustrative example of the kind of finding Anti-Drift Shield is intended to surface.
 
-## Troubleshooting & FAQ
+Suppose an AI agent claims to have implemented a profile settings page but creates a file that is not connected to the application and still contains unfinished logic.
 
-| Problem | Solution |
+Run:
+
+```bash
+antidrift goal "Add user profile settings page"
+antidrift verify
+```
+
+A verification report might identify:
+
+```text
+[SHIELD: VERIFYING]
+
+Goal: Add user profile settings page
+
+[ORPHANED FILES]
+  - src/components/ProfileSettings.tsx
+
+[STUBS DETECTED]
+  - src/components/ProfileSettings.tsx
+
+[STATUS: DRIFT DETECTED]
+
+Resolve the reported findings before committing.
+```
+
+*The output above is illustrative; exact wording and results depend on the installed version and repository state.*
+
+## Troubleshooting
+
+| Issue | Suggested action |
 |---|---|
-| `command not found: antidrift` | Close and reopen your terminal. If still failing, run `npm config get prefix` — the output directory must be in your `$PATH`. |
-| `EACCES permission denied` (Mac/Linux) | Never use `sudo npm install -g` on Mac. Instead install via `nvm` (Node Version Manager). |
-| `command not found: node` | Node.js isn't installed. Go back to Step 1. |
-| `npm ERR! 404 Not Found` | Make sure you're running `npm install -g antidrift`. |
-| Version mismatch (older version installed) | Run `npm install -g antidrift@latest` to force-update. |
-| "No tsconfig.json found" | `antidrift` will warn you and fall back to a default TypeScript parser to ensure it still catches orphans and stubs in brand-new projects. |
-| Monorepos | If your backend is in a subfolder (e.g., `./backend/`), just update the `"tsconfigPath"` in `.shieldrc.json` to point to it. |
-| False Positives on AI Rules | By default, `.cursorrules`, `.clinerules`, `.windsurfrules`, and `.antigravity/` are ignored by the stub scanner. |
-
----
+| `command not found: antidrift` | Reopen the terminal and confirm the global npm executable directory is on your `PATH`. |
+| `command not found: node` | Install Node.js 18 or later. |
+| npm permission errors | Consider using a Node version manager such as nvm rather than changing system-wide permissions. |
+| TypeScript configuration not found | Check `tsconfigPath` and confirm the project configuration exists. |
+| False-positive orphan reports | Review application entry points, dynamic imports, framework conventions, and ignore settings. |
+| Monorepo validation problems | Configure the correct package or application path and run verification from the intended repository root. |
+| AI-agent configuration issues | Inspect the generated files and ensure they are supported by your installed agent and Anti-Drift Shield version. |
+| Verification blocks a commit | Read the findings, fix or investigate them, and rerun verification before proceeding. |
 
 ## Contributing
 
-We welcome contributions! If you want to add support for a new language (like C# or Ruby), fix a bug, or improve the AST parser:
-1. Fork the repo and clone it locally.
-2. Run `npm install` and `npm run build`.
-3. Create a feature branch and submit a Pull Request. 
-Please ensure `antidrift verify` passes on your own code before submitting.
+Contributions that improve verification accuracy, language support, documentation, and developer experience are welcome.
 
----
+### Development workflow
+
+1. Fork the repository.
+2. Clone your fork.
+3. Install project dependencies.
+4. Create a dedicated feature branch.
+5. Implement and test your changes.
+6. Run the applicable build and verification checks.
+7. Submit a pull request describing the change, its motivation, and the tests performed.
+
+Example:
+
+```bash
+git clone https://github.com/adorbis/antidrift.git
+cd antidrift
+
+npm install
+npm run build
+
+git checkout -b feat/your-change
+```
+
+Before submitting a pull request, verify the relevant checks for your change and document any known limitations.
+
+Please consult the repository's contribution instructions, if present, before submitting.
+
+## Security and Reliability
+
+Anti-Drift Shield is intended to improve implementation verification and repository-level development discipline.
+
+It should be used as one layer in a broader engineering process that includes code review, automated tests, security analysis, and deployment validation.
+
+Automated scanning can produce false positives and false negatives. A successful run should not be interpreted as a guarantee of correctness, completeness, or security.
+
+If you discover a security vulnerability, follow the repository's published security reporting process, if one is available.
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Anti-Drift Shield is distributed under the **Apache License 2.0**. See the [`LICENSE`](LICENSE) file for the complete terms.
 
 ---
 
 <div align="center">
-  <sub>Built with care by <a href="https://github.com/adorbis">Adorbis</a> — because shipping real code shouldn't require reading tea leaves.</sub>
+
+**Anti-Drift Shield**
+
+*Verify what was built. Track what was claimed. Review what gets committed.*
+
+Built by [Adorbis](https://github.com/adorbis).
+
 </div>
-```
