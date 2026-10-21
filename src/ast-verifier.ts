@@ -16,7 +16,7 @@ export function runASTAudit(cwd: string, config: ShieldConfig, objective: Object
   const orphans: string[] = [];
   const stubs: string[] = [];
   const tsFiles = allChanged.filter(f => f.endsWith('.ts') || f.endsWith('.tsx'));
-  const otherFiles = allChanged.filter(f => !f.endsWith('.ts') && !f.endsWith('.tsx') && !f.endsWith('.md') && !f.endsWith('.json'));
+  const otherFiles = allChanged.filter(f => !f.endsWith('.ts') && !f.endsWith('.tsx') && !f.endsWith('.md') && !f.endsWith('.json') && !matchesIgnore(f, config.ignorePatterns));
 
   if (tsFiles.length > 0) {
     const tsconfigPath = path.resolve(cwd, config.tsconfigPath);
