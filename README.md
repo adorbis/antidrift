@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/logo.png" alt="Anti-Drift Shield" width="420" />
+<img src="https://static.wixstatic.com/media/aec640_65cb8c2dccf448bab431f8fdf05d0a85~mv2.jpg" alt="Anti-Drift Shield" width="600" />
 
 # Anti-Drift Shield
 
@@ -46,13 +46,29 @@ This is **AI drift**. It's silent, expensive, and universal.
 |-------|----------------|
 | **Orphans** | Files created on disk, never imported anywhere |
 | **Stubs** | `// TODO`, `// FIXME`, `throw new Error("Not implemented")` |
-| **Type errors** | `tsc --noEmit` failures |
+| **Type errors** | `tsc --noEmit`, `cargo check`, `go build`, `compileall` |
 | **Worktrees** | Detached HEADs, uncommitted junk |
 | **Package drift** | Unrequested `package.json` / lockfile changes |
 | **False claims** | "I built X" / "X is wired" verified against reality |
 | **Repeated claims** | Same lie told twice without progress |
 
 If any check fails, `antidrift verify` **blocks the commit**.
+
+---
+
+## Compatible languages & frameworks
+
+`antidrift` uses a zero-bloat hybrid architecture. It relies on native toolchains for type checks and a universal scanner for stubs.
+
+| Stack | Stub Detection | Type Check | Orphan/Wiring Detection |
+|-------|:---:|:---:|:---:|
+| **TypeScript / JS** | ✅ Full | ✅ Full (`tsc`) | ✅ Full (AST) |
+| **Python** | ✅ Full | ✅ Full (`compileall`) | ⚠️ Basic |
+| **Rust** | ✅ Full | ✅ Full (`cargo check`) | ⚠️ Basic |
+| **Go** | ✅ Full | ✅ Full (`go build`) | ⚠️ Basic |
+| **Java / C++ / Ruby** | ✅ Full (Regex) | — | — |
+
+*Note: We do not bloat your `node_modules` with heavy parsers. `antidrift` automatically detects your language at the project root and runs the native compiler already installed on your machine.*
 
 ---
 
