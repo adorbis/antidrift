@@ -1,24 +1,3 @@
-I see exactly what happened. **You accidentally pasted my chat instructions inside the README file.**
-
-Look at the `Quick Demo` section in your text—it ends with the code block, but then immediately starts with:
-> *"You're absolutely right — the installation section I provided was too brief..."*
-> *"### 🚦 Update ONLY the Installation Section..."*
-
-This will break the Markdown on GitHub. Also, the file you pasted is incomplete—it cuts off after the Installation Guide and is missing the Quick Start, CLI Reference, Configuration, Troubleshooting, and License sections.
-
-Here is the **complete, fully corrected README** with zero chat text and all sections included. 
-
-### 🚦 How to fix it:
-1. Go to **https://github.com/adorbis/antidrift**
-2. Click the **Pencil icon** (✏️) next to `README.md`.
-3. Press **Cmd+A** (or Ctrl+A) to select everything, and **Delete** it.
-4. **Copy the entire block below** and paste it in.
-5. Scroll down, ensure **"Commit directly to the main branch"** is selected, and click **Commit changes**.
-
----
-
-### 📋 Copy this clean, complete README:
-
 ```markdown
 <div align="center">
 
