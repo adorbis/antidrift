@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-const updateNotifier = require('update-notifier');
+import updateNotifier from 'update-notifier';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
 import * as path from 'path';
